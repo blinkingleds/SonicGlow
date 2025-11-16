@@ -18,10 +18,8 @@ public:
     void CalculateVisual(ws2811_t &ws2811, const std::vector<GradientPoint> &palette);
 
 private:
-    static constexpr float max_amplitude_smoothing_factor = 0.02f;
 
     float vu_final_smoothed = 0.0f;
-    const float final_VU_smoothing_factor = 0.9f;
 
     // Buffer for the outward ripple effect
     std::vector<uint8_t> history_buffer_;

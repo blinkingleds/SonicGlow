@@ -18,7 +18,11 @@
 #include "waveformVisual.h"
 #include "portaudiosetup.h"
 #include <stdlib.h>     
-#include <time.h>       
+#include <time.h>    
+#include "defaultVisual.h"
+
+
+static void calculaterms(const std::array<float, 512UL> &audio_samples, float &out_rms);
 
 // Global flag to control the main loop, allowing for graceful shutdown.
 // This is atomic to ensure safe access from both the main thread and the signal handler.
@@ -32,6 +36,7 @@ void signal_handler(int signum) {
 
 // Enum to define the available visualization modes.
 enum class VisualizationMode {
+    DEFAULT,
     FFT,
     Waveform,
     VU
@@ -155,6 +160,7 @@ int main()
     FFTVisualizer fft_visualizer(FRAMES_PER_BUFFER, SAMPLE_RATE);
     WaveformVisualizer waveform_visualizer;
     VULevelMeter level_meter; 
+    DefaultVisual default_visual;
 
 
     VisualizationMode current_mode = VisualizationMode::FFT;
@@ -162,6 +168,7 @@ int main()
     const auto switch_interval = std::chrono::minutes(VISUAL_SWITCH_INTERVAL);
 
     double max  = 0;
+    float average_rms = 0;
 
     while (running) 
     {
@@ -184,26 +191,51 @@ int main()
             }
             fft(fft_input);
 
+            // Calculate RMS for mode switching and normalization
+            float rms_current = 0;
+            calculaterms(final_buffer, rms_current);
+            average_rms = (PREPROCESSING_RMS_SMOOTHING_FACTOR * rms_current) + ((1.0f - PREPROCESSING_RMS_SMOOTHING_FACTOR) * average_rms);
+
+            // --- Normalize the FFT output by dividing by the current RMS ---
+            const float epsilon = 1e-6; // To prevent division by zero
+            if (rms_current > epsilon) {
+                for (auto& val : fft_input) {
+                    val /= rms_current;
+                }
+            }
+
             // Handle visualization mode switching based on the timer.
             auto now = std::chrono::steady_clock::now();
-            if (now - last_switch_time > switch_interval) {
-                // Cycle to the next mode
-                if (current_mode == VisualizationMode::FFT) {
-                    current_mode = VisualizationMode::Waveform;
-                } else if (current_mode == VisualizationMode::Waveform) {
-                    current_mode = VisualizationMode::VU;
-                } else { // VU
-                    current_mode = VisualizationMode::FFT;
-                }
-                last_switch_time = now; // Reset the timer
+            if (average_rms < DEFAULT_VISUAL_THRESHOLD) 
+            {
+                current_mode = VisualizationMode::DEFAULT;
+            } 
+            else if ((average_rms > NON_DEFAULT_VISUAL_THRESHOLD) || (current_mode != VisualizationMode::DEFAULT))
+            {
+                if ((now - last_switch_time > switch_interval)  || (current_mode == VisualizationMode::DEFAULT)) 
+                {
+                    // Cycle to the next mode
+                    if (current_mode == VisualizationMode::FFT) {
+                        current_mode = VisualizationMode::Waveform;
+                    } else if (current_mode == VisualizationMode::Waveform) {
+                        current_mode = VisualizationMode::VU;
+                    } else { // VU
+                        current_mode = VisualizationMode::FFT;
+                    }
+                    last_switch_time = now; // Reset the timer
 
-                current_palette_index = (rand() % palettes.size());
+                    current_palette_index = (rand() % palettes.size());
+                }
             }
 
             const auto& current_palette_vector = *palettes[current_palette_index];
 
+
             // Update and render the visualization based on the current mode
             switch (current_mode) {
+                case VisualizationMode::DEFAULT:
+                    default_visual.CalculateVisual(ledstring, wiretapPalette);
+                    break;
                 case VisualizationMode::FFT:
                     fft_visualizer.update(fft_input);
                     fft_visualizer.CalculateVisual(ledstring, current_palette_vector);
@@ -253,4 +285,11 @@ int main()
 }
 
 
-
+static void calculaterms(const std::array<float, 512UL> &audio_samples, float &out_rms)
+{
+    float sum_sq = 0.0f;
+    for (const auto &sample : audio_samples) {
+        sum_sq += sample * sample;
+    }
+    out_rms = std::sqrt(sum_sq / audio_samples.size());
+}

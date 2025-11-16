@@ -20,10 +20,10 @@ void WaveformVisualizer::CalculateWaveform(const std::array<float, 512UL> &audio
     for (const auto &sample : audio_samples) {
         sum_sq += sample * sample;
     }
-    float rms_level = std::sqrt(sum_sq / audio_samples.size()) * 10.0f;
+    float rms_level = std::sqrt(sum_sq / audio_samples.size());
 
     // Smooth the level to prevent flickering
-    vu_final_smoothed = (final_VU_smoothing_factor * rms_level) + ((1.0f - final_VU_smoothing_factor) * vu_final_smoothed);
+    vu_final_smoothed = (WAVEFORM_VISUAL_SMOOTHING_FACTOR * rms_level) + ((1.0f - WAVEFORM_VISUAL_SMOOTHING_FACTOR) * vu_final_smoothed);
 
     // Shift all values in the history buffer one step outwards
     if (history_buffer_.size() > 1) {
@@ -33,7 +33,7 @@ void WaveformVisualizer::CalculateWaveform(const std::array<float, 512UL> &audio
     }
 
     // Calculate the new brightness for the center and insert it
-    float new_brightness = vu_final_smoothed * 255.0f*0.6f;;
+    float new_brightness = vu_final_smoothed * 255.0f * (WAVEFORM_VISUAL_BRIGHTNESS_GAIN*10);
     if (new_brightness > 255.0f) new_brightness = 255.0f;
     if (new_brightness < 10.0f) new_brightness = 0.0f; // Noise gate
 
@@ -54,7 +54,7 @@ void WaveformVisualizer::CalculateVisual(ws2811_t &ws2811, const std::vector<Gra
 
         // Scale brightness based on distance from the center
         float ratio = static_cast<float>(i) / static_cast<float>(history_buffer_.size());
-        float distance_scale = std::pow(1.0f - ratio, 2.0f); // Quadratic falloff
+        float distance_scale = std::pow(1.0f - ratio, 1.2f); // Quadratic falloff
         brightness = static_cast<uint8_t>(static_cast<float>(brightness) * distance_scale);
 
         // Calculate positions for the left and right side of the ripple

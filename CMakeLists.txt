@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g")
 
 
-add_executable(SonicGlow main.cpp preProcessing.cpp fft.cpp vuVisual.cpp fftVisual.cpp  portaudiosetup.cpp waveformVisual.cpp RGBColorPalette.cpp rpi_ws281x/mailbox.c rpi_ws281x/ws2811.c rpi_ws281x/pwm.c rpi_ws281x/pcm.c rpi_ws281x/dma.c rpi_ws281x/rpihw.c )
+add_executable(SonicGlow main.cpp preProcessing.cpp fft.cpp vuVisual.cpp fftVisual.cpp defaultVisual.cpp portaudiosetup.cpp waveformVisual.cpp RGBColorPalette.cpp rpi_ws281x/mailbox.c rpi_ws281x/ws2811.c rpi_ws281x/pwm.c rpi_ws281x/pcm.c rpi_ws281x/dma.c rpi_ws281x/rpihw.c )
 
 
 

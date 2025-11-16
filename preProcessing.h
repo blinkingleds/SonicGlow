@@ -5,6 +5,7 @@
 #include <vector>
 #include "parameters.h"
 #include "fft.h"
+#include "parameters.h"
 
 class PreProcessor {
 public:
@@ -22,8 +23,6 @@ private:
     float smoothed_gain_;
 
 
-    static constexpr float TARGET_RMS = 0.05f; 
-    static constexpr float SMOOTHING_FACTOR = 0.02f;
 };
 
 

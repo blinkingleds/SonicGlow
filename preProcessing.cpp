@@ -21,31 +21,35 @@ std::array<float, FRAMES_PER_BUFFER> PreProcessor::process(const std::array<shor
     // Remove any DC offset
     removeDCOffset(mono_buffer);
 
+
     
     // Automatic Gain Control (AGC) 
     // Calculate RMS of the current buffer
     float sum_sq = std::accumulate(mono_buffer.begin(), mono_buffer.end(), 0.0f, 
                                    [](float acc, float val) { return acc + val * val; });
     float current_rms = std::sqrt(sum_sq / mono_buffer.size());
-    running_avg_rms_ = (1.0f - SMOOTHING_FACTOR) * running_avg_rms_ + SMOOTHING_FACTOR * current_rms;
+    running_avg_rms_ = (1.0f - PREPROCESSING_RMS_SMOOTHING_FACTOR) * running_avg_rms_ + PREPROCESSING_RMS_SMOOTHING_FACTOR * current_rms;
     
+    // Only apply gain if the signal is above a noise threshold
+    if (running_avg_rms_ > DEFAULT_VISUAL_THRESHOLD) {
+        float target_gain = PREPROCESSING_AGC_TARGET_RMS / running_avg_rms_;
+        if (target_gain > PREPROCESSING_GAIN_THRESHOLD) target_gain = PREPROCESSING_GAIN_THRESHOLD; // Prevent extreme gain
 
-    float target_gain = (running_avg_rms_ > 0.003f) ? (TARGET_RMS / running_avg_rms_) : 1.0f;
-    if (target_gain > 10.0f) target_gain = 10.0f; // Prevent extreme gain
+        smoothed_gain_ = (1.0f - PREPROCESSING_GAIN_SMOOTHING_FACTOR) * smoothed_gain_ + PREPROCESSING_GAIN_SMOOTHING_FACTOR * target_gain;
 
-    smoothed_gain_ = (1.0f - SMOOTHING_FACTOR) * smoothed_gain_ + SMOOTHING_FACTOR * target_gain;
+        std::array<float, FRAMES_PER_BUFFER> normalized_buffer;
+        for (size_t i = 0; i < mono_buffer.size(); ++i) {
+            float amplified_sample = mono_buffer[i] * smoothed_gain_;
+            normalized_buffer[i] = std::max(-1.0f, std::min(1.0f, amplified_sample));
+        }
 
-
-    //std::cout << "RMS: " << running_avg_rms_ << " Gain: " << smoothed_gain_ << std::endl; 
-
-    std::array<float, FRAMES_PER_BUFFER> normalized_buffer;
-    for (size_t i = 0; i < mono_buffer.size(); ++i) {
-        float amplified_sample = mono_buffer[i] * smoothed_gain_;
-        // Limiter now clamps to the correct float range.
-        normalized_buffer[i] = std::max(-1.0f, std::min(1.0f, amplified_sample));
+        std::cout << "Gain: " << smoothed_gain_ << " RMS: " << running_avg_rms_ << std::endl;
+        return normalized_buffer;
+    } else {
+        // If below threshold, smoothly return gain to 1.0 and pass buffer through
+        smoothed_gain_ = (1.0f - PREPROCESSING_GAIN_SMOOTHING_FACTOR) * smoothed_gain_ + PREPROCESSING_GAIN_SMOOTHING_FACTOR * 1.0f;
+        return mono_buffer;
     }
-    return mono_buffer;
-    
 }
 
 float PreProcessor::getCurrentGain() const {

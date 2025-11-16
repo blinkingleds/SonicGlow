@@ -57,45 +57,32 @@ VULevelMeter::VULevelMeter() {
 
 void VULevelMeter::CalculateVolumeLevel(const std::array<float, 512UL> &audio_samples)
 {
-    float max_amplitude_now = 0.0f;
     float sum_sq = 0.0f;
     for (const auto &sample : audio_samples) {
         sum_sq += sample * sample;
     }
-    max_amplitude_now = std::sqrt(sum_sq / audio_samples.size())  * 10.0f; // RMS scaled
-    raw_max_current_amplitude = max_amplitude_now;
-    max_current_amplitude = max_amplitude_now;
-
-
+    current_rms = std::sqrt(sum_sq / audio_samples.size());
+    current_rms = current_rms * VU_VISUAL_BRIGHTNESS_GAIN * 10;
 
     
-    amplitude_noise_floor = (amplitude_noise_floor * (1.0f - max_amplitude_smoothing_factor)) + (max_amplitude_smoothing_factor * max_current_amplitude);
-    amplitude_noise_floor = amplitude_noise_floor *  0.90f;
+    //noise_floor = (noise_floor * (1.0f - VU_VISUAL_NOISE_FLOOR_SMOOTHING_FACTOR)) + (VU_VISUAL_NOISE_FLOOR_SMOOTHING_FACTOR * current_rms);
 
-    max_current_amplitude = fmaxf(max_current_amplitude - amplitude_noise_floor, 0.0f);
-    float max_current_amplitude_after_noise = max_current_amplitude;
+    //float rms_noise_suppressed = fmaxf(current_rms - noise_floor, 0.0f);
+
+
+    vu_final_smoothed = (VU_VISUAL_FINAL_SMOOTHING_FACTOR * current_rms) + ((1.0f - VU_VISUAL_FINAL_SMOOTHING_FACTOR) * vu_final_smoothed);
+
     
 
-    
-    // normaalization based on recent max value
-    if (max_amplitude_now > max_recent_amplitude_ceiling) {
-        max_recent_amplitude_ceiling = (0.90f * max_recent_amplitude_ceiling) + (0.1f * max_amplitude_now);
-    } else {
-        max_recent_amplitude_ceiling = (0.90f * max_recent_amplitude_ceiling) - (0.1f * max_amplitude_now);
-    }
-
-
-    const float compression_factor = 0.99f; // Tunable: 0.0 to 1.0. Lower is more compression.
-     max_current_amplitude = std::pow(max_current_amplitude, compression_factor);
-    
-
-    vu_final_smoothed = (final_VU_smoothing_factor * max_current_amplitude) + ((1.0f - final_VU_smoothing_factor) * vu_final_smoothed);
 
     // Add the new value to the front of the history and maintain size
     level_history.push_front(vu_final_smoothed);
     if (level_history.size() > history_size) {
         level_history.pop_back();
     }
+
+
+    
 }
 
 
@@ -127,15 +114,9 @@ void VULevelMeter::CalculateVisual(ws2811_t &ws2811, const std::vector<GradientP
             level_pos = 0;
         }
 
-        // Calculate brightness that fades with age. Newest (i=0) is brightest.
-        unsigned char trail_brightness = static_cast<unsigned char>(100 * (1.0f - ((static_cast<float>(i)* 1.2) / history_size)));
-        
-        // Ensure a minimum brightness for the tail, but full brightness for the head
-        if (i == 0) {
-            trail_brightness = 100;
-        } else if (trail_brightness < 10) {
-            trail_brightness = 10;
-        }
+        // Exponential decay for trail brightness
+        const float decay_rate = 5.0f;  //Adjust for faster/slower decay
+        unsigned char trail_brightness = static_cast<unsigned char>(255.0f * std::exp(-decay_rate * i / history_size));
 
         //  Calculate colors based on the LED's position in the gradient 
         int center = LED_COUNT / 2;
