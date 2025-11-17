@@ -100,3 +100,10 @@ All major parameters can be tuned in the `parameters.h` file. This is the centra
 ## License
 
 This project is licensed under the MIT License. The included `rpi_ws281x` library is distributed under its own license.
+
+## TODOs
+
+1.  Add an acrylic diffuser panel in the front.
+2.  Switching between ambient and other modes based on music detection. The current method is based on loudness.
+3.  Improve FFT spectrum visualization - reduce flickering, power line noise impacting lower frequency bins.
+
