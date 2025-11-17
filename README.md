@@ -5,7 +5,27 @@ A real-time audio visualizer for Raspberry Pi and WS281x LED strips.  It capture
 ## Features
 
 - Multiple Visualization Modes: Includes an FFT spectrum analyzer, a symmetric VU meter, a scrolling waveform, and an ambient idle pattern.
+- FFT Spectrum : A classic frequency spectrum that displays the magnitude of frequences ranging from 0 to 8Khz. 
 
+https://github.com/user-attachments/assets/f24d2d11-de67-4808-b763-e62971474b46
+
+
+- VU Meter : Symmetric volume meter based on the RMS value of the raw audio with the decaying trail showing historical values.
+
+https://github.com/user-attachments/assets/5f0a426b-6e67-4afa-8b28-7f2aa38218c6
+
+- Scrolling Waveform : A scrolling oscilloscope style display of the raw audio waveform
+
+
+https://github.com/user-attachments/assets/5a8dd7df-c440-4f30-9236-9f8bae7f1a24
+
+- Ambient Mode: An ambient, gently shifting nosise pattern for when no music is playing
+
+
+https://github.com/user-attachments/assets/1e804b41-af13-4527-8b58-6b446441fbee
+
+
+  
 
 ## Hardware Requirements
 
