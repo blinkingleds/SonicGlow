@@ -43,7 +43,7 @@ std::array<float, FRAMES_PER_BUFFER> PreProcessor::process(const std::array<shor
             normalized_buffer[i] = std::max(-1.0f, std::min(1.0f, amplified_sample));
         }
 
-        std::cout << "Gain: " << smoothed_gain_ << " RMS: " << running_avg_rms_ << std::endl;
+        //std::cout << "Gain: " << smoothed_gain_ << " RMS: " << running_avg_rms_ << std::endl;
         return normalized_buffer;
     } else {
         // If below threshold, smoothly return gain to 1.0 and pass buffer through

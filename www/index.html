@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SonicGlow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      letter-spacing: 0.15em;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+
+    #status-label {
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      color: #888;
+      text-transform: uppercase;
+      min-height: 1.4em;
+    }
+
+    #toggle-btn {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: background 0.25s, box-shadow 0.25s, transform 0.1s;
+      outline: none;
+      user-select: none;
+    }
+
+    #toggle-btn.on {
+      background: #1db954;
+      color: #fff;
+      box-shadow: 0 0 40px rgba(29, 185, 84, 0.55);
+    }
+
+    #toggle-btn.off {
+      background: #c0392b;
+      color: #fff;
+      box-shadow: 0 0 40px rgba(192, 57, 43, 0.55);
+    }
+
+    #toggle-btn:active {
+      transform: scale(0.95);
+    }
+
+    #toggle-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>SonicGlow</h1>
+  <div id="status-label">Connecting…</div>
+  <button id="toggle-btn" disabled>—</button>
+
+  <script>
+    const btn = document.getElementById('toggle-btn');
+    const label = document.getElementById('status-label');
+    let enabled = null;
+
+    function applyState(isEnabled) {
+      enabled = isEnabled;
+      btn.disabled = false;
+      btn.textContent = isEnabled ? 'ON' : 'OFF';
+      btn.className = isEnabled ? 'on' : 'off';
+      label.textContent = isEnabled ? 'LEDs active' : 'LEDs paused';
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) throw new Error('bad response');
+        const data = await res.json();
+        applyState(data.enabled);
+      } catch {
+        label.textContent = 'Connection lost…';
+        btn.disabled = true;
+      }
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const endpoint = enabled ? '/api/off' : '/api/on';
+        const res = await fetch(endpoint, { method: 'POST' });
+        if (!res.ok) throw new Error('bad response');
+        const data = await res.json();
+        applyState(data.enabled);
+      } catch {
+        label.textContent = 'Request failed';
+        await fetchStatus();
+      }
+    });
+
+    // Initial fetch, then poll every 2 seconds to stay in sync
+    fetchStatus();
+    setInterval(fetchStatus, 2000);
+  </script>
+
+</body>
+</html>

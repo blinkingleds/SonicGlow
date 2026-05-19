@@ -64,11 +64,6 @@ void VULevelMeter::CalculateVolumeLevel(const std::array<float, 512UL> &audio_sa
     current_rms = std::sqrt(sum_sq / audio_samples.size());
     current_rms = current_rms * VU_VISUAL_BRIGHTNESS_GAIN * 10;
 
-    
-    //noise_floor = (noise_floor * (1.0f - VU_VISUAL_NOISE_FLOOR_SMOOTHING_FACTOR)) + (VU_VISUAL_NOISE_FLOOR_SMOOTHING_FACTOR * current_rms);
-
-    //float rms_noise_suppressed = fmaxf(current_rms - noise_floor, 0.0f);
-
 
     vu_final_smoothed = (VU_VISUAL_FINAL_SMOOTHING_FACTOR * current_rms) + ((1.0f - VU_VISUAL_FINAL_SMOOTHING_FACTOR) * vu_final_smoothed);
 
@@ -101,38 +96,43 @@ void VULevelMeter::CalculateVisual(ws2811_t &ws2811, const std::vector<GradientP
         ws2811.channel[0].leds[i] = getGradientColor(static_cast<float>(i) / (float)LED_COUNT, palette, bg_brightness);
     }
 
-    // Iterate through the history to draw the trail over the background
-    for (size_t i = 0; i < level_history.size(); ++i) {
-        float historical_level = level_history[i];
-        int level_pos = static_cast<int>(historical_level * LED_COUNT / 2);
+    // Find min and max values in the history buffer
+    if (level_history.empty()) return;
+    
+    float max_level = *std::max_element(level_history.begin(), level_history.end());
+    float min_level = *std::min_element(level_history.begin(), level_history.end());
 
-        // Clamp the position to prevent writing out of bounds
-        if (level_pos >= LED_COUNT / 2) {
-            level_pos = (LED_COUNT / 2) - 1;
-        }
-        if (level_pos < 0) {
-            level_pos = 0;
-        }
+    // Convert to LED positions
+    int max_level_pos = static_cast<int>(max_level * LED_COUNT / 2);
+    int min_level_pos = static_cast<int>(min_level * LED_COUNT / 2);
+    int peak_level_pos = static_cast<int>(level_history.front() * LED_COUNT / 2);
 
-        // Exponential decay for trail brightness
-        const float decay_rate = 5.0f;  //Adjust for faster/slower decay
-        unsigned char trail_brightness = static_cast<unsigned char>(255.0f * std::exp(-decay_rate * i / history_size));
+    // Clamp positions to valid range
+    max_level_pos = std::max(0, std::min(max_level_pos, (LED_COUNT / 2) - 1));
+    min_level_pos = std::max(0, std::min(min_level_pos, (LED_COUNT / 2) - 1));
+    peak_level_pos = std::max(0, std::min(peak_level_pos, (LED_COUNT / 2) - 1));
 
-        //  Calculate colors based on the LED's position in the gradient 
-        int center = LED_COUNT / 2;
-        int right_led_index = center + level_pos;
-        int left_led_index = center - 1 - level_pos;
+    int center = LED_COUNT / 2;
 
-        // Get the color for the right side LED based on its position
-        float right_pos_normalized = static_cast<float>(right_led_index) / (float)LED_COUNT;
-        unsigned int right_trail_color = getGradientColor(right_pos_normalized, palette, trail_brightness);
+    // Fill all LEDs between min and max for both sides
+    for (int pos = min_level_pos; pos <= max_level_pos; ++pos) {
+        // Distance from the latest (peak) sample drives brightness
+        float distance_from_peak = static_cast<float>(std::abs(pos - peak_level_pos));
+        float distance_range = static_cast<float>(std::max(1, max_level_pos - min_level_pos));
+        float normalized_distance = distance_from_peak / distance_range;
 
-        // Get the color for the left side LED based on its position
-        float left_pos_normalized = static_cast<float>(left_led_index) / (float)LED_COUNT;
-        unsigned int left_trail_color = getGradientColor(left_pos_normalized, palette, trail_brightness);
+        // Exponential decay from the peak
+        const float trail_decay = 6.0f; // tweak for faster/slower fade
+        float brightness_f = 255.0f * std::exp(-trail_decay * normalized_distance);
+        unsigned char trail_brightness = static_cast<unsigned char>(
+            std::clamp(brightness_f, 0.0f, 255.0f));
 
-        // Set the LEDs for both sides of the meter with their respective colors
-        ws2811.channel[0].leds[right_led_index] = right_trail_color;
-        ws2811.channel[0].leds[left_led_index] = left_trail_color;
+        int right_led_index = center + pos;
+        float right_pos_normalized = static_cast<float>(right_led_index) / static_cast<float>(LED_COUNT);
+        ws2811.channel[0].leds[right_led_index] = getGradientColor(right_pos_normalized, palette, trail_brightness);
+
+        int left_led_index = center - 1 - pos;
+        float left_pos_normalized = static_cast<float>(left_led_index) / static_cast<float>(LED_COUNT);
+        ws2811.channel[0].leds[left_led_index] = getGradientColor(left_pos_normalized, palette, trail_brightness);
     }
 }

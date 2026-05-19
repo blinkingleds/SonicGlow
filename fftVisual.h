@@ -21,9 +21,10 @@ private:
     const size_t fft_size_;
     const int sample_rate_;
 
-    std::vector<double> smoothed_magnitudes_;
-    std::vector<double> peak_magnitudes_;
+    std::vector<float> smoothed_magnitudes_;
     std::vector<uint8_t> led_levels_;
+    std::vector<float> raw_led_magnitudes;
+    std::vector<float> fft_magnitudes;
 
 
     static constexpr double SMOOTHING_FACTOR = 0.5;  // Lowered for faster reaction

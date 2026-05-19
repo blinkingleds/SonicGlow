@@ -4,9 +4,10 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
-#include <deque> // Include deque for the history buffer
+#include <deque>
+#include <complex>
 #include "RGBColorPalette.h"
-#include "parameters.h" // Make sure LED_COUNT is available
+#include "parameters.h"
 
 class WaveformVisualizer {
 public:
@@ -14,11 +15,10 @@ public:
 
     ~WaveformVisualizer() {}
 
-    void CalculateWaveform(const std::array<float, 512UL> &audio_samples);
+    void CalculateWaveform(const std::vector<std::complex<double>> &fft_data);
     void CalculateVisual(ws2811_t &ws2811, const std::vector<GradientPoint> &palette);
 
 private:
-
     float vu_final_smoothed = 0.0f;
 
     // Buffer for the outward ripple effect
